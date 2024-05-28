@@ -46,44 +46,21 @@ def save_page(url, base_dir):
             full_url = urljoin(url, link)
             file_links.append(full_url)
 
-    return file_links, directory_links
+    return file_links, directory_links #returns the fileLinks and the directoryLinks belongs to 
+#cases que the href endsWith / or ? so it gets added to the array with directory links
 
-def create_index_page(base_dir, start_url, max_depth):
-    index_content = "<html><head><title>Index</title></head><body><h1>Index</h1><ul>"
-    visited = set()
-
-    def traverse_directory(directory_path, depth):
-        nonlocal index_content
-        if depth > max_depth:
-            return
-        if directory_path in visited:
-            return
-        visited.add(directory_path)
-        index_content += f"<li><a href='{directory_path}'>{directory_path}</a><ul>"
-        for item in os.listdir(directory_path):
-            item_path = os.path.join(directory_path, item)
-            if os.path.isdir(item_path):
-                traverse_directory(item_path, depth + 1)
-            else:
-                index_content += f"<li><a href='{item_path}'>{item}</a></li>"
-        index_content += "</ul></li>"
-
-    traverse_directory(base_dir, 0)
-    index_content += "</ul></body></html>"
-
-    with open(os.path.join(base_dir, "index.html"), "w") as index_file:
-        index_file.write(index_content)
-
+#how much time shall we do it, currenth deep increases as iteration advances
+#maxdepth is given by the user, how many levels inside we want to download
 def adentrando(url, base_dir, visited, current_depth, max_depth):
     if current_depth > max_depth or url in visited:
         return
-    visited.add(url)
+    visited.add(url)#adding the url in the visited
 
     print(f"Adentrando: {url} en nivel {current_depth}")
 
     # Create a directory for the current page
     parsed_url = urlparse(url)
-    print(f"Parsed URL: {parsed_url}")
+    print(f"parsed url:{parsed_url}")
     page_dir = os.path.join(base_dir, parsed_url.netloc, os.path.dirname(parsed_url.path.lstrip('/')))
     os.makedirs(page_dir, exist_ok=True)
 
@@ -119,5 +96,3 @@ if __name__ == "__main__":
 
     visited = set()
     adentrando(start_url, base_dir, visited, 0, max_depth)
-
-    create_index_page(base_dir, start_url, max_depth)
