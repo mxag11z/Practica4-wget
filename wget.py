@@ -2,10 +2,10 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Number of threads
-MAX_THREADS = 100
+MAX_THREADS = 10
 
 def download_file(url, save_path):
     try:
@@ -89,27 +89,32 @@ def adentrando(url, base_dir, visited, current_depth, max_depth):
     # Rename conflicting file links
     renamed_files_map = rename_conflicting_files(file_links, directory_links)
 
-    for file_url, (file_dir, file_name) in renamed_files_map.items():
-        if '?' not in file_url and file_url not in visited:
-            visited.add(file_url)
-            print(f'\nThis is the file name: {file_name}')
-            save_dir = os.path.join(base_dir, parsed_url.netloc, file_dir.lstrip('/').replace('/', os.sep))
-            os.makedirs(save_dir, exist_ok=True)
-            save_path = os.path.join(save_dir, file_name)
-            print(f"\nThis is the savepath: {save_path}")
-            download_file(file_url, save_path)
+    # Use ThreadPoolExecutor to download files concurrently
+    with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+        future_to_url = {
+            executor.submit(download_file, file_url, os.path.join(base_dir, parsed_url.netloc, file_dir.lstrip('/').replace('/', os.sep), file_name)): file_url
+            for file_url, (file_dir, file_name) in renamed_files_map.items()
+            if '?' not in file_url and file_url not in visited
+        }
+        for future in as_completed(future_to_url):
+            file_url = future_to_url[future]
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Error downloading {file_url}: {e}")
 
     # Recursively crawl linked directories if within depth limit
-    for directory_url in directory_links:
-        adentrando(directory_url, base_dir, visited, current_depth + 1, max_depth)
+    if current_depth < max_depth:
+        for directory_url in directory_links:
+            adentrando(directory_url, base_dir, visited, current_depth + 1, max_depth)
 
 if __name__ == "__main__":
     start_url = "http://148.204.58.221/axel/aplicaciones/"  # Replace with the URL you want to start from
     base_dir = "C:/Users/maxar/Documents/downloadsfrom".replace('/', os.sep)  # Use forward slashes to avoid escape characters
-    max_depth = 3  # Set the desired depth level
+    max_depth = 2  # Set the desired depth level
 
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
 
     visited = set()
-    adentrando(start_url, base_dir, visited, 0, max_depth)
+    adentrando(start_url, base_dir, visited, 1, max_depth)
